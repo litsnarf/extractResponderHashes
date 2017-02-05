@@ -1,7 +1,6 @@
 #Extract Responder Hashes
 
-Simple script that extracts hashes from the Responder-Session.log
-
+Extract hashes from `Responder-Session.log`. Select to extract only one hash per user (first occurence) or all the hashes gathered (different HASH_TYPE) per user.
 
 ##Usage
 
@@ -13,8 +12,8 @@ Simple script that extracts hashes from the Responder-Session.log
 -o, --output <filename>:  [OPTIONAL] Output results into a file.
     If not specified, the results are printed in the stdout
 -i, --input  <filename>:  [OPTIONAL]responder log file to parse
--A: [OPTIONAL] Print all hashes for every user. If not specified,
-    it prints only the first occurence in the file per user
+-A: [OPTIONAL] Extract all the hashes for every user. If not specified,
+    it prints only the first occurence in the file (per user)
 ```
 
 
