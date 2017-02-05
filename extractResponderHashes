@@ -82,8 +82,8 @@ fi
 
 # temporary file to work with
 TMP1=$(mktemp tmp.resp.XXXXXXX)
+TMP2=$(mktemp tmp.resp.XXXXXXX)
 FINALRES=$(mktemp tmp.resp.XXXXXXX)
-TMP3=$(mktemp tmp.resp.XXXXXXX)
 
 # remove non UTF-8 characters
 cat $INPUT | strings -n 8 >> $TMP1
@@ -94,9 +94,9 @@ grep -ioE "[^:]+::.+" $TMP1 >> $FINALRES
 # extract only one occurence per user (avoid multiple hases for each user)
 if [ "$ALLHASH" == false ] ; then
   for user in $(egrep -ioE '(.*::[^.*:]+:)' $FINALRES | sort -u) ; do 
-        grep "$user" $FINALRES | grep -ioE "[^:]+::.+$" | tail -n 1 | sort -u >> $TMP3
+        grep "$user" $FINALRES | grep -ioE "[^:]+::.+$" | tail -n 1 | sort -u >> $TMP2
   done
-  cp $TMP3 $FINALRES
+  cp $TMP2 $FINALRES
 fi
 
 # Write the results into a file or stout
@@ -107,4 +107,4 @@ else
 fi
 
 # Delete all temp files
-trap "rm -f $TMP1 $FINALRES $TMP3" EXIT
+trap "rm -f $TMP1 $FINALRES $TMP2" EXIT
