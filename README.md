@@ -19,5 +19,5 @@ Simple script that extracts hashes from the Responder-Session.log
 
 
 ##TODO
-*  Allow to select the time frame to parse
-*  Allow to select the types of hash to extract or All
+*  Select the time frame to parse
+*  Select the types of hash to extract or All
