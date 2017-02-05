@@ -1,28 +1,28 @@
 #!/bin/bash
-
-##
-## extractResponderHashes by litsnarf
-## ===============================================
-## Extracts one hash per user from a Responder-Session.log file
+#
+## =========================================================
+## Name: extractResponderHashes
+## Auth: litsnarf
+## Desc: Extracts hashes from a Responder-Session.log file
+## =========================================================
 ##
 ## Usage: ./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output] [-A]
 ##    -o, --output <filename>:  [OPTIONAL] Output results into a file. 
 ##          If not specified, the results are printed in the stdout
 ##    -i, --input  <filename>:  [OPTIONAL]responder log file to parse
-##    -A: [OPTIONAL] Print all hashes for every user. If not specified, 
-##          it prints only the first occurence in the file per user
+##    -A: [OPTIONAL] Extract all the hashes for every user. If not specified, 
+##          it prints only the first occurence in the file (per user)
 ##
-#TODO
-# *) Allow to select the time frame to parse
-# *) Allow to select the types of hash to extract or All
 
-# print the help manual
+#TODO
+# *) Select the time frame to parse
+# *) Select the types of hash to extract or All
+
+# Print help
 function usage {
   
   if [ "$1" == 1 ] ; then
-    echo -e ""
-    grep -E '^## ?' "$0" | sed -E 's/^## ?//g' | sed -n '6p'
-    echo -e ""
+    echo -e "" && grep -E '^## ?' "$0" | sed -E 's/^## ?//g' | sed -n '7p' && echo -e ""
   else
     grep -E '^## ?' "$0" | sed -E 's/^## ?//g'
   fi
@@ -89,14 +89,12 @@ TMP3=$(mktemp tmp.resp.XXXXXXX)
 cat $INPUT | strings -n 8 >> $TMP1
 
 # extract all hashes for every user and write it: username:DOMAIN::hash
-for user in $(egrep -oE '(^|[^a-fA-F0-9])[a-fA-F0-9]{32}([^a-fA-F0-9]|$)' $TMP1 | egrep -o '[a-fA-F0-9]{32}') ; do 
-      grep -m 1 "$user" $TMP1 | grep -ioE "[^:]+::.+$" | tail -n 1 >> $FINALRES
-done
+grep -ioE "[^:]+::.+" $TMP1 >> $FINALRES
 
 # extract only one occurence per user (avoid multiple hases for each user)
 if [ "$ALLHASH" == false ] ; then
   for user in $(egrep -ioE '(.*::[^.*:]+:)' $FINALRES | sort -u) ; do 
-        grep -m 1 "$user" $FINALRES | grep -ioE "[^:]+::.+$" | tail -n 1 | sort -u >> $TMP3
+        grep "$user" $FINALRES | grep -ioE "[^:]+::.+$" | tail -n 1 | sort -u >> $TMP3
   done
   cp $TMP3 $FINALRES
 fi
