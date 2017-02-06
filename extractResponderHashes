@@ -6,17 +6,20 @@
 ## Desc: Extracts hashes from a Responder-Session.log file
 ## =========================================================
 ##
-## Usage: ./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output] [-A]
+## Usage: ./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output] [-A,--start,--end]
 ##    -o, --output <filename>:  [OPTIONAL] Output results into a file. 
 ##          If not specified, the results are printed in the stdout
-##    -i, --input  <filename>:  [OPTIONAL]responder log file to parse
+##    -i, --input  <filename>:  [OPTIONAL] Responder log file to parse
 ##    -A: [OPTIONAL] Extract all the hashes for every user. If not specified, 
 ##          it prints only the first occurence in the file (per user)
-##
+##    --start mm/dd/yyyy: [OPTIONAL] Extract hashes starting from the date specified
+##          **The date must exist in the file
+##    --end mm/dd/yyyy: [OPTIONAL] Extract hashes till the date specified (included)
+##          **The date must exist in the file
 
 #TODO
-# *) Select the time frame to parse
 # *) Select the types of hash to extract or All
+# *) Try to nslookup/ping the machine to check if it alive/true
 
 # Print help
 function usage {
@@ -27,6 +30,37 @@ function usage {
     grep -E '^## ?' "$0" | sed -E 's/^## ?//g'
   fi
   exit
+}
+
+function checkDate()
+{
+  if date -d $1 2>&1 > /dev/null # With a bit of luck this will work...
+  then
+      local VAL=$1
+      local OPT=$2
+      
+      if [[ -z "${VAL}" || "${VAL}" =~ ^[[:space:]]*$ || "${VAL}" == -* ]] ; then 
+        echo -e "\n  ERROR: Missing argument for option: ${OPT}\n" >&2; 
+        exit 1
+      fi
+  else
+      echo -e "Please use mm/dd/yyy \n" >&2;
+      exit
+  fi
+}
+
+
+function checkStartEnd()
+{
+
+  MIN=`date --date="$1" +%s`
+  MAX=`date --date="$2" +%s`
+  
+  if [[ MIN -gt MAX ]] ; then 
+    echo -e "\n\t  E NO! --end MUST be greater than --start  \n";
+    exit
+  fi
+
 }
 
 function ifEmpty()
@@ -50,7 +84,7 @@ ALLHASH=false
 
 
 # parse the parameter passes
-OPTS=`getopt -o hAi:o: --long input:,output:,help -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hAi:o: --long input:,output:,start:,end:,help -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ]
 then
@@ -65,11 +99,16 @@ while true; do
     -h | --help)      usage ; exit ;;
     -i | --input)     ifEmpty "$2" "$1"; INPUT=$2 ; shift 2 ;;
     -o | --output)    ifEmpty "$2" "$1"; OUTPUT=$2; shift 2 ;;
+        --start)      checkDate "$2" "$1"; STARTDATE=$2; shift 2 ;;
+        --end)        checkDate "$2" "$1"; ENDDATE=$2; shift 2 ;;
     -A)               ALLHASH=true ; shift ;;
     -- ) shift; break ;;
     * ) break ;;
   esac
 done
+
+
+checkStartEnd $STARTDATE $ENDDATE
 
 # take the input file name if it is not provided with the -i option but directly in the command
 # ex: ./extractResponderHashes pathToFile.log -o out.txt
@@ -85,11 +124,24 @@ TMP1=$(mktemp tmp.resp.XXXXXXX)
 TMP2=$(mktemp tmp.resp.XXXXXXX)
 FINALRES=$(mktemp tmp.resp.XXXXXXX)
 
+
 # remove non UTF-8 characters
 cat $INPUT | strings -n 8 >> $TMP1
 
+# extract date in a range
+firstLine=$(grep -n -m 1 $STARTDATE $TMP1 |cut -f1 -d: )
+lastLine=$(grep -no $ENDDATE $TMP1 | tail -1 | awk -F'[_:]' '{print $1}')
+
+if [[ $firstLine == "" || $lastLine == "" ]] ; then 
+  echo "The specified date does not exist. Please check your input"
+  exit
+fi
+
+sed -n "$firstLine,$lastLine p" $TMP1 >> $FINALRES
+cp $FINALRES $TMP1
+
 # extract all hashes for every user and write it: username:DOMAIN::hash
-grep -ioE "[^:]+::.+" $TMP1 >> $FINALRES
+grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" $TMP1 > $FINALRES
 
 # extract only one occurence per user (avoid multiple hases for each user)
 if [ "$ALLHASH" == false ] ; then
