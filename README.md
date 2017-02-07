@@ -1,6 +1,6 @@
 #Extract Responder Hashes
 
-Extract hashes from `Responder-Session.log`. Select to extract only one hash per user (first occurence) or all the hashes gathered (different HASH_TYPE) per user. Other options can be specified to filter the results.s
+Extract hashes from `Responder-Session.log`. Select to extract only one hash per user (first occurence) or all the hashes gathered (different HASH_TYPE and protocols) per user. Other options can be specified to filter the results.s
 
 ##Usage
 
@@ -18,6 +18,8 @@ Extract hashes from `Responder-Session.log`. Select to extract only one hash per
     **The date must exist in the file
 --end mm/dd/yyyy: [OPTIONAL] Extract hashes till the date specified (included)
     **The date must exist in the file
+-p, --protocols <protocol_name>: [OPTIONAL] Select the protocol for which you want the hashes
+    If more than one separate with a | : -H SMB|HTTP|SMBv2|FTP
 ```
 
 

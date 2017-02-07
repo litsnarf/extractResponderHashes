@@ -6,7 +6,7 @@
 ## Desc: Extracts hashes from a Responder-Session.log file
 ## =========================================================
 ##
-## Usage: ./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output] [-A,--start,--end]
+## Usage: ./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output] [-A,--start,--end] [-p SMB|FTP]
 ##    -o, --output <filename>:  [OPTIONAL] Output results into a file. 
 ##          If not specified, the results are printed in the stdout
 ##    -i, --input  <filename>:  [OPTIONAL] Responder log file to parse
@@ -16,6 +16,8 @@
 ##          **The date must exist in the file
 ##    --end mm/dd/yyyy: [OPTIONAL] Extract hashes till the date specified (included)
 ##          **The date must exist in the file
+##    -p, --protocols <protocol_name>: [OPTIONAL] Select the protocol for which you want the hashes
+##          If more than one separate with a | : -H SMB|HTTP|SMBv2|FTP
 
 #TODO
 # *) Select the types of hash to extract or All
@@ -32,6 +34,7 @@ function usage {
   exit
 }
 
+#check if the date format is correct
 function checkDate()
 {
   if date -d $1 2>&1 > /dev/null # With a bit of luck this will work...
@@ -49,7 +52,7 @@ function checkDate()
   fi
 }
 
-
+#check if starting date is less than end date
 function checkStartEnd()
 {
 
@@ -63,6 +66,7 @@ function checkStartEnd()
 
 }
 
+# check parameters
 function ifEmpty()
 {
     local VAL=$1
@@ -74,17 +78,22 @@ function ifEmpty()
     fi
 }
 
+
+#START
+
 # print manual if no options
 if [ "$1" == "" ] ; then
   usage
 fi
 
+# set some variables for later 
 INPUT=false
 ALLHASH=false
+PROTOCOLS=".*"
 
 
 # parse the parameter passes
-OPTS=`getopt -o hAi:o: --long input:,output:,start:,end:,help -n 'parse-options' -- "$@"`
+OPTS=`getopt -o Ahp:i:o: --long input:,output:,start:,end:,protocols:,help -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ]
 then
@@ -96,18 +105,19 @@ eval set -- "$OPTS"
 
 while true; do
   case "$1" in
-    -h | --help)      usage ; exit ;;
-    -i | --input)     ifEmpty "$2" "$1"; INPUT=$2 ; shift 2 ;;
-    -o | --output)    ifEmpty "$2" "$1"; OUTPUT=$2; shift 2 ;;
-        --start)      checkDate "$2" "$1"; STARTDATE=$2; shift 2 ;;
-        --end)        checkDate "$2" "$1"; ENDDATE=$2; shift 2 ;;
-    -A)               ALLHASH=true ; shift ;;
-    -- ) shift; break ;;
-    * ) break ;;
+    -h  | --help)       usage ; exit ;;
+    -i  | --input)      ifEmpty "$2" "$1"; INPUT=$2 ; shift 2 ;;
+    -o  | --output)     ifEmpty "$2" "$1"; OUTPUT=$2; shift 2 ;;
+    -p  | --protocols)  ifEmpty "$2" "$1"; PROTOCOLS=$2; shift 2 ;;    
+          --start)      checkDate "$2" "$1"; STARTDATE=$2; shift 2 ;;
+          --end)        checkDate "$2" "$1"; ENDDATE=$2; shift 2 ;;
+    -A)                 ALLHASH=true ; shift ;;
+    --)                 shift; break ;;
+    * )                 break ;;
   esac
 done
 
-
+# check if the dates are congruent
 checkStartEnd $STARTDATE $ENDDATE
 
 # take the input file name if it is not provided with the -i option but directly in the command
@@ -124,28 +134,30 @@ TMP1=$(mktemp tmp.resp.XXXXXXX)
 TMP2=$(mktemp tmp.resp.XXXXXXX)
 FINALRES=$(mktemp tmp.resp.XXXXXXX)
 
-
-# remove non UTF-8 characters
+# remove non UTF-8 characters from the input file
 cat $INPUT | strings -n 8 >> $TMP1
 
 # extract date in a range
-firstLine=$(grep -n -m 1 $STARTDATE $TMP1 |cut -f1 -d: )
-lastLine=$(grep -no $ENDDATE $TMP1 | tail -1 | awk -F'[_:]' '{print $1}')
+if [[ $STARTDATE && $ENDDATE ]] ; then 
+  firstLine=$(grep -n -m 1 $STARTDATE $TMP1 |cut -f1 -d: )
+  lastLine=$(grep -no $ENDDATE $TMP1 | tail -1 | awk -F'[_:]' '{print $1}')
 
-if [[ $firstLine == "" || $lastLine == "" ]] ; then 
-  echo "The specified date does not exist. Please check your input"
-  exit
+  if [[ $firstLine == "" || $lastLine == "" ]] ; then 
+    echo "The specified date does not exist. Please check your input"
+    exit
+  fi
+
+  sed -n "$firstLine,$lastLine p" $TMP1 >> $FINALRES
+  cp $FINALRES $TMP1
 fi
 
-sed -n "$firstLine,$lastLine p" $TMP1 >> $FINALRES
+# extract all hashes for every user. If one or more hashtype is specified it will filter the results accordingly
+grep -ioE "\[($PROTOCOLS)\].+[^:]+::.+:[a-zA-Z0-9_]+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
 cp $FINALRES $TMP1
-
-# extract all hashes for every user and write it: username:DOMAIN::hash
-grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" $TMP1 > $FINALRES
 
 # extract only one occurence per user (avoid multiple hases for each user)
 if [ "$ALLHASH" == false ] ; then
-  for user in $(egrep -ioE '(.*::[^.*:]+:)' $FINALRES | sort -u) ; do 
+  for user in $(egrep -ioE '(.*::[^:]+:)' $FINALRES | sort -u) ; do 
         grep "$user" $FINALRES | grep -ioE "[^:]+::.+$" | tail -n 1 | sort -u >> $TMP2
   done
   cp $TMP2 $FINALRES
