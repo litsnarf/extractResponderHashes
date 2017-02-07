@@ -151,7 +151,7 @@ if [[ $STARTDATE && $ENDDATE ]] ; then
   cp $FINALRES $TMP1
 fi
 
-# extract all hashes for every user. If one or more hashtype is specified it will filter the results accordingly
+# extract all hashes for every user. If one or more protocol is specified it will filter the results accordingly
 grep -ioE "\[($PROTOCOLS)\].+[^:]+::.+:[a-zA-Z0-9_]+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
 cp $FINALRES $TMP1
 

@@ -5,7 +5,7 @@ Extract hashes from `Responder-Session.log`. Select to extract only one hash per
 ##Usage
 
 ```bash
-./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output] [-A]
+./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output] [-A,--start,--end] [-p SMB|FTP]
 ```
 ###Options
 ```
