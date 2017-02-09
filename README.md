@@ -1,11 +1,11 @@
 #Extract Responder Hashes
 
-Extract hashes from `Responder-Session.log`. You can choose to extract all hashes or filter the results 
-*) 1 hash per user (first occurrence)
-*) date range
-*) hash type
-*) protocol
-*) more - check Usage section
+Extract hashes from `Responder-Session.log`. You can choose to extract all hashes or filter the results
+* one hash per user (first occurrence)
+* date range
+* hash type
+* protocol
+* more - check Usage section
 
 ##Usage
 
@@ -14,10 +14,10 @@ Extract hashes from `Responder-Session.log`. You can choose to extract all hashe
 ```
 ###Options
 ```
--o, --output <filename>:  [OPTIONAL] Output results into a file. 
+-o, --output <filename>:  [OPTIONAL] Output results into a file.
       If not specified, the results are printed in the stdout
 -i, --input  <filename>:  [OPTIONAL] Responder log file to parse
--A: [OPTIONAL] Extract all the hashes for every user (useful to check against john pot). 
+-A: [OPTIONAL] Extract all the hashes for every user (useful to check against john pot).
     If not specified, it prints only the first occurence per user
 --start mm/dd/yyyy: [OPTIONAL] Extract hashes starting from the date specified
       **The date must exist in the file
@@ -31,6 +31,6 @@ Extract hashes from `Responder-Session.log`. You can choose to extract all hashe
 
 
 ##TODO
-*) Try to nslookup/ping the machine to check if it alive/true
-*) Extract specif user hashes
-*) Extract specific domain hashes
+* Try to nslookup/ping the machine to check if it alive/true
+* Extract specif user hashes
+* Extract specific domain hashes
