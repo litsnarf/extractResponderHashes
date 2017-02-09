@@ -10,18 +10,21 @@
 ##    -o, --output <filename>:  [OPTIONAL] Output results into a file. 
 ##          If not specified, the results are printed in the stdout
 ##    -i, --input  <filename>:  [OPTIONAL] Responder log file to parse
-##    -A: [OPTIONAL] Extract all the hashes for every user. If not specified, 
-##          it prints only the first occurence in the file (per user)
+##    -A: [OPTIONAL] Extract all the hashes for every user (useful to check against john pot). 
+##        If not specified, it prints only the first occurence per user
 ##    --start mm/dd/yyyy: [OPTIONAL] Extract hashes starting from the date specified
 ##          **The date must exist in the file
 ##    --end mm/dd/yyyy: [OPTIONAL] Extract hashes till the date specified (included)
 ##          **The date must exist in the file
-##    -p, --protocols <protocol_name>: [OPTIONAL] Select the protocol for which you want the hashes
-##          If more than one separate with a | : -H SMB|HTTP|SMBv2|FTP
+##    -P, --protocols <protocol_name>: [OPTIONAL] Select the protocol for which you want the hashes
+##          If more than, one separate with | : -P "SMB|HTTP|SMBv2|FTP"
+##    -H, --hash-type <HASH_TYPE>: [OPTIONAL] Select the HASH_TYPE for which you want the hashes
+##          If more than one, separate with | : -H "NTLMv2|NTLMv2-SSP"
 
 #TODO
-# *) Select the types of hash to extract or All
 # *) Try to nslookup/ping the machine to check if it alive/true
+# *) Extract specif user hashes
+# *) Extract specific domain hashes
 
 # Print help
 function usage {
@@ -90,10 +93,11 @@ fi
 INPUT=false
 ALLHASH=false
 PROTOCOLS=".*" #By default all protocols
+HASHTYPE=".*" #By default all protocols
 
 
 # parse the parameter passes
-OPTS=`getopt -o Ahp:i:o: --long input:,output:,start:,end:,protocols:,help -n 'parse-options' -- "$@"`
+OPTS=`getopt -o AhH:P:i:o: --long input:,output:,start:,end:,protocols:,hash-type:,help -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ]
 then
@@ -108,7 +112,8 @@ while true; do
     -h  | --help)       usage ; exit ;;
     -i  | --input)      ifEmpty "$2" "$1"; INPUT=$2 ; shift 2 ;;
     -o  | --output)     ifEmpty "$2" "$1"; OUTPUT=$2; shift 2 ;;
-    -p  | --protocols)  ifEmpty "$2" "$1"; PROTOCOLS=$2; shift 2 ;;    
+    -H  | --hash-type)  ifEmpty "$2" "$1"; HASHTYPE=$2; shift 2 ;;
+    -P  | --protocols)  ifEmpty "$2" "$1"; PROTOCOLS=$2; shift 2 ;;    
           --start)      checkDate "$2" "$1"; STARTDATE=$2; shift 2 ;;
           --end)        checkDate "$2" "$1"; ENDDATE=$2; shift 2 ;;
     -A)                 ALLHASH=true ; shift ;;
@@ -116,6 +121,7 @@ while true; do
     * )                 break ;;
   esac
 done
+
 
 # check if the dates are congruent
 checkStartEnd $STARTDATE $ENDDATE
@@ -160,16 +166,7 @@ fi
 #[TODO] already cleaned the TMP file from useless lines, so change the regex in a simpler one
 
 
-# \[(.*)\].+[:]+[a-zA-Z0-9_]+      THIS SHOULD WORK TO. CHECK 
-
-#
-grep -ioE "\[($PROTOCOLS)\].+[^:]+::.+:[a-zA-Z0-9_]+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
-cp $FINALRES $TMP1
-
-
-
-# extract all hashes for every user. If one or more protocol is specified it will filter the results accordingly
-grep -ioE "\[($PROTOCOLS)\].+[^:]+::.+:[a-zA-Z0-9_]+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
+grep -ioE "(\[($PROTOCOLS)\] )(($HASHTYPE) )(Hash +:)((.+[^:])::)(.*[^:])?(:)((.*[^:]):)(:*[a-zA-Z0-9_]+)([:]+[a-zA-Z0-9_]+)+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
 cp $FINALRES $TMP1
 
 
@@ -181,9 +178,15 @@ if [ "$ALLHASH" == false ] ; then
   cp $TMP2 $FINALRES
 fi
 
+# remove white spaces
+awk '{print $1}' $FINALRES > $TMP1
+cp $TMP1 $FINALRES
+
+
 # Write the results into a file or stout
 if [ "$OUTPUT" == "" ] ; then
-  cat $FINALRES #stdout
+
+cat $FINALRES #stdout
 else
   mv $FINALRES $OUTPUT #file provided in the command
 fi
