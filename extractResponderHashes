@@ -79,7 +79,7 @@ function ifEmpty()
 }
 
 
-#START
+#START HERE
 
 # print manual if no options
 if [ "$1" == "" ] ; then
@@ -89,7 +89,7 @@ fi
 # set some variables for later 
 INPUT=false
 ALLHASH=false
-PROTOCOLS=".*"
+PROTOCOLS=".*" #By default all protocols
 
 
 # parse the parameter passes
@@ -137,7 +137,12 @@ FINALRES=$(mktemp tmp.resp.XXXXXXX)
 # remove non UTF-8 characters from the input file
 cat $INPUT | strings -n 8 >> $TMP1
 
-# extract date in a range
+
+# Remove junk lines from the log
+grep -iE "Hash *:.+[^:]+::.+:[a-zA-Z0-9_]+" $TMP1 > $FINALRES
+cp $FINALRES $TMP1
+
+# extract date in a range - improve by checking if the date exists and if not, increase it till you find a match
 if [[ $STARTDATE && $ENDDATE ]] ; then 
   firstLine=$(grep -n -m 1 $STARTDATE $TMP1 |cut -f1 -d: )
   lastLine=$(grep -no $ENDDATE $TMP1 | tail -1 | awk -F'[_:]' '{print $1}')
@@ -151,9 +156,22 @@ if [[ $STARTDATE && $ENDDATE ]] ; then
   cp $FINALRES $TMP1
 fi
 
+
+#[TODO] already cleaned the TMP file from useless lines, so change the regex in a simpler one
+
+
+# \[(.*)\].+[:]+[a-zA-Z0-9_]+      THIS SHOULD WORK TO. CHECK 
+
+#
+grep -ioE "\[($PROTOCOLS)\].+[^:]+::.+:[a-zA-Z0-9_]+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
+cp $FINALRES $TMP1
+
+
+
 # extract all hashes for every user. If one or more protocol is specified it will filter the results accordingly
 grep -ioE "\[($PROTOCOLS)\].+[^:]+::.+:[a-zA-Z0-9_]+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
 cp $FINALRES $TMP1
+
 
 # extract only one occurence per user (avoid multiple hases for each user)
 if [ "$ALLHASH" == false ] ; then
