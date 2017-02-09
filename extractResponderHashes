@@ -2,29 +2,30 @@
 #
 ## =========================================================
 ## Name: extractResponderHashes
-## Auth: litsnarf
-## Desc: Extracts hashes from a Responder-Session.log file
+## Auth: @litsnarf
+## Desc: Extract/Filter hashes from Responder-Session.log files
 ## =========================================================
 ##
-## Usage: ./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output] [-A,--start,--end] [-p SMB|FTP]
-##    -o, --output <filename>:  [OPTIONAL] Output results into a file. 
-##          If not specified, the results are printed in the stdout
-##    -i, --input  <filename>:  [OPTIONAL] Responder log file to parse
-##    -A: [OPTIONAL] Extract all the hashes for every user (useful to check against john pot). 
-##        If not specified, it prints only the first occurence per user
-##    --start mm/dd/yyyy: [OPTIONAL] Extract hashes starting from the date specified
-##          **The date must exist in the file
-##    --end mm/dd/yyyy: [OPTIONAL] Extract hashes till the date specified (included)
-##          **The date must exist in the file
-##    -P, --protocols <protocol_name>: [OPTIONAL] Select the protocol for which you want the hashes
-##          If more than, one separate with | : -P "SMB|HTTP|SMBv2|FTP"
-##    -H, --hash-type <HASH_TYPE>: [OPTIONAL] Select the HASH_TYPE for which you want the hashes
-##          If more than one, separate with | : -H "NTLMv2|NTLMv2-SSP"
+## Usage: ./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output,-A,--start,--end,-P "SMB|FTP" -H "NTLMv2|NTLMv2-SSP", -U, -D]
+##
+##  Input/Output options
+##    -i, --input  <filename>           Responder log file to parse
+##    -o, --output <filename>           Output results into a file 
+##
+##  Filter options
+##    -A:                               Extract ALL the hashes for every user. By default extraxt the first occurence
+##    -P, --protocols <protocol_name>   Protocol(s) for which you want the hashes. Separate with pipe (|): -P "SMB|HTTP|SMBv2|FTP"
+##    -H, --hash-type <HASH_TYPE>       HASH_TYPE for which you want the hashes. Separate with pipe (|): -H "NTLMv2|NTLMv2-SSP"
+##    -U, --user <username>             Filter hashes for a specific username
+##    -D, --domain                      Filter hashes for a specific domain
+##
+##  Date and time: the dates must exist in the file
+##    --start mm/dd/yyyy                Extract hashes starting from the date specified
+##    --end mm/dd/yyyy                  Extract hashes till the date specified (included)
 
 #TODO
-# *) Try to nslookup/ping the machine to check if it alive/true
-# *) Extract specif user hashes
-# *) Extract specific domain hashes
+# * nslookup/ping the machine to check if it alive/true
+# * print client IP information (IP)
 
 # Print help
 function usage {
@@ -93,11 +94,13 @@ fi
 INPUT=false
 ALLHASH=false
 PROTOCOLS=".*" #By default all protocols
-HASHTYPE=".*" #By default all protocols
+HASHTYPE=".*" #By default all hash types
+USER="" #By default all users
+DOMAIN="" #By default all domains
 
 
 # parse the parameter passes
-OPTS=`getopt -o AhH:P:i:o: --long input:,output:,start:,end:,protocols:,hash-type:,help -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hi:o:AH:P:U:D: --long input:,output:,start:,end:,protocols:,hash-type:,user:,domain:,help -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ]
 then
@@ -114,6 +117,8 @@ while true; do
     -o  | --output)     ifEmpty "$2" "$1"; OUTPUT=$2; shift 2 ;;
     -H  | --hash-type)  ifEmpty "$2" "$1"; HASHTYPE=$2; shift 2 ;;
     -P  | --protocols)  ifEmpty "$2" "$1"; PROTOCOLS=$2; shift 2 ;;    
+    -U  | --user)       ifEmpty "$2" "$1"; USER=$2; shift 2 ;;    
+    -D  | --domain)     ifEmpty "$2" "$1"; DOMAIN=$2; shift 2 ;;    
           --start)      checkDate "$2" "$1"; STARTDATE=$2; shift 2 ;;
           --end)        checkDate "$2" "$1"; ENDDATE=$2; shift 2 ;;
     -A)                 ALLHASH=true ; shift ;;
@@ -166,7 +171,7 @@ fi
 #[TODO] already cleaned the TMP file from useless lines, so change the regex in a simpler one
 
 
-grep -ioE "(\[($PROTOCOLS)\] )(($HASHTYPE) )(Hash +:)((.+[^:])::)(.*[^:])?(:)((.*[^:]):)(:*[a-zA-Z0-9_]+)([:]+[a-zA-Z0-9_]+)+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
+grep -ioE "(\[($PROTOCOLS)\] )(($HASHTYPE) )(Hash +:)( (.*$USER.*)::)(.*$DOMAIN.*)([^:])?(:)((.*[^:]):)(:*[a-zA-Z0-9_]+)([:]+[a-zA-Z0-9_]+)+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
 cp $FINALRES $TMP1
 
 
@@ -182,14 +187,15 @@ fi
 awk '{print $1}' $FINALRES > $TMP1
 cp $TMP1 $FINALRES
 
+#truncate -s 0  $TMP2
 
 # Write the results into a file or stout
 if [ "$OUTPUT" == "" ] ; then
-
-cat $FINALRES #stdout
+  cat $FINALRES #stdout
 else
   mv $FINALRES $OUTPUT #file provided in the command
 fi
+
 
 # Delete all temp files
 trap "rm -f $TMP1 $FINALRES $TMP2" EXIT
