@@ -7,6 +7,7 @@ Extract hashes from `Responder-Session.log`. Select to extract all hashes or fil
 * protocol
 * user
 * domain
+* IP and client information
 
 ##Usage
 
@@ -18,6 +19,7 @@ Extract hashes from `Responder-Session.log`. Select to extract all hashes or fil
 Input/Output options
   -i, --input  <filename>           Responder log file to parse
   -o, --output <filename>           Output results into a file 
+  -I, --show-ip                     Print client information for each hash
 
 Filter options
   -A:                               Extract ALL the hashes for every user. By default extraxt the first occurence
@@ -34,3 +36,4 @@ Date and time: the dates must exist in the file
 ##TODO
 * Try to nslookup/ping the machine to check if it alive/true
 * print client IP information (IP)
+* add IP filter
