@@ -11,6 +11,7 @@
 ##  Input/Output options
 ##    -i, --input  <filename>           Responder log file to parse
 ##    -o, --output <filename>           Output results into a file 
+##    -I, --show-ip                     Print client information for each hash
 ##
 ##  Filter options
 ##    -A:                               Extract ALL the hashes for every user. By default extraxt the first occurence
@@ -75,7 +76,7 @@ function ifEmpty()
 {
     local VAL=$1
     local OPT=$2
-    
+
     if [[ -z "${VAL}" || "${VAL}" =~ ^[[:space:]]*$ || "${VAL}" == -* ]] ; then 
       echo -e "\n  ERROR: Missing argument for option: ${OPT}\n" >&2; 
       exit 1
@@ -97,10 +98,11 @@ PROTOCOLS=".*" #By default all protocols
 HASHTYPE=".*" #By default all hash types
 USER="" #By default all users
 DOMAIN="" #By default all domains
+SHOWIP=false #By default all domains
 
 
 # parse the parameter passes
-OPTS=`getopt -o hi:o:AH:P:U:D: --long input:,output:,start:,end:,protocols:,hash-type:,user:,domain:,help -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hi:o:AH:P:U:D:I --long input:,output:,start:,end:,protocols:,hash-type:,user:,domain:,show-ip,help -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ]
 then
@@ -119,6 +121,7 @@ while true; do
     -P  | --protocols)  ifEmpty "$2" "$1"; PROTOCOLS=$2; shift 2 ;;    
     -U  | --user)       ifEmpty "$2" "$1"; USER=$2; shift 2 ;;    
     -D  | --domain)     ifEmpty "$2" "$1"; DOMAIN=$2; shift 2 ;;    
+    -I  | --show-ip)    SHOWIP=true ; shift ;;
           --start)      checkDate "$2" "$1"; STARTDATE=$2; shift 2 ;;
           --end)        checkDate "$2" "$1"; ENDDATE=$2; shift 2 ;;
     -A)                 ALLHASH=true ; shift ;;
@@ -133,11 +136,12 @@ checkStartEnd $STARTDATE $ENDDATE
 
 # take the input file name if it is not provided with the -i option but directly in the command
 # ex: ./extractResponderHashes pathToFile.log -o out.txt
-if [[ -n $1  || $INPUT = "" ]]; then
-    INPUT="$1"
+if [ -z $1 ]; then
+  if [ -z $INPUT ]; then
+    echo -e "\n  ERROR: Missing the responder input file! Please check the manual. \n"
+  fi
 else
-  echo -e "\n  ERROR: Missing the responder input file! Please check the manual. \n"
-  exit
+  INPUT=$1
 fi
 
 # temporary file to work with
@@ -146,7 +150,16 @@ TMP2=$(mktemp tmp.resp.XXXXXXX)
 FINALRES=$(mktemp tmp.resp.XXXXXXX)
 
 # remove non UTF-8 characters from the input file
-cat $INPUT | strings -n 8 >> $TMP1
+cat $INPUT | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" >> $TMP2
+
+cat $TMP2 | strings -n 8 >> $TMP1
+echo "" > $TMP2
+
+
+### Remote color codes from output
+#sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"
+
+
 
 
 # Remove junk lines from the log
@@ -170,7 +183,6 @@ fi
 
 #[TODO] already cleaned the TMP file from useless lines, so change the regex in a simpler one
 
-
 grep -ioE "(\[($PROTOCOLS)\] )(($HASHTYPE) )(Hash +:)( (.*$USER.*)::)(.*$DOMAIN.*)([^:])?(:)((.*[^:]):)(:*[a-zA-Z0-9_]+)([:]+[a-zA-Z0-9_]+)+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
 cp $FINALRES $TMP1
 
@@ -187,7 +199,17 @@ fi
 awk '{print $1}' $FINALRES > $TMP1
 cp $TMP1 $FINALRES
 
-#truncate -s 0  $TMP2
+
+truncate -s 0  $TMP1 $TMP2
+cat $INPUT | strings -n 8 >> $TMP1
+if [[ $SHOWIP == true ]] ; then
+  while read -r line
+  do
+      grep -iE -B2 "$line" $TMP1 >> $TMP2
+  done < "$FINALRES"
+  
+cp $TMP2 $FINALRES
+fi
 
 # Write the results into a file or stout
 if [ "$OUTPUT" == "" ] ; then
