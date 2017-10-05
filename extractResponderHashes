@@ -131,6 +131,7 @@ while true; do
 done
 
 
+
 # check if the dates are congruent
 checkStartEnd $STARTDATE $ENDDATE
 
