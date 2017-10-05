@@ -217,11 +217,15 @@ fi
 if [ "$OUTPUT" == "" ] ; then
   echo -e "\n === LIST OF HASHES === \n"
   cat $FINALRES #stdout
-  echo -e "\n === LIST OF USERNAMES === \n"
-  cat $USERNAMES
+  if $USERNAMESOPT ; then
+    echo -e "\n === LIST OF USERNAMES === \n"
+    cat $USERNAMES
+  fi
 else
   mv $FINALRES $OUTPUT #file provided in the command
-  mv $USERNAMES "$OUTPUT.usernames"
+  if $USERNAMESOPT ; then
+    mv $USERNAMES "$OUTPUT.usernames"
+  fi
 fi
 
 

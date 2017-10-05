@@ -1,20 +1,20 @@
-#Extract Responder Hashes
+# Extract Responder Hashes
 
 Extract hashes from `Responder-Session.log`. Select to extract all hashes or filter by
 * one hash per user (first occurrence)
 * date range
 * hash type
 * protocol
-* user
+* users
 * domain
 * IP and client information
 
-##Usage
+## Usage
 
 ```bash
 ./extractResponderHashes [-i|--input] <Responder-Session.log> [-o|--output,-A,--start,--end,-P "SMB|FTP" -H "NTLMv2|NTLMv2-SSP", 
 ```
-###Options
+### Options
 ```
 Input/Output options
   -i, --input  <filename>           Responder log file to parse
@@ -27,13 +27,14 @@ Filter options
   -H, --hash-type <HASH_TYPE>       HASH_TYPE for which you want the hashes. Separate with pipe (|): -H "NTLMv2|NTLMv2-SSP"
   -U, --user <username>             Filter hashes for a specific username
   -D, --domain                      Filter hashes for a specific domain
+  -u, --usernames                   Extract and save the list of usernames gathered
 
 Date and time: the dates must exist in the file
   --start mm/dd/yyyy                Extract hashes starting from the date specified
   --end mm/dd/yyyy                  Extract hashes till the date specified (included)
 ```
 
-##TODO
+## TODO
 * Try to nslookup/ping the machine to check if it alive/true
 * print client IP information (IP)
 * add IP filter
