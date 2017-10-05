@@ -19,6 +19,7 @@
 ##    -H, --hash-type <HASH_TYPE>       HASH_TYPE for which you want the hashes. Separate with pipe (|): -H "NTLMv2|NTLMv2-SSP"
 ##    -U, --user <username>             Filter hashes for a specific username
 ##    -D, --domain                      Filter hashes for a specific domain
+##    -u, --usernames                   Extract and save the list of usernames gathered
 ##
 ##  Date and time: the dates must exist in the file
 ##    --start mm/dd/yyyy                Extract hashes starting from the date specified
@@ -98,11 +99,12 @@ PROTOCOLS=".*" #By default all protocols
 HASHTYPE=".*" #By default all hash types
 USER="" #By default all users
 DOMAIN="" #By default all domains
+USERNAMESOPT=false
 SHOWIP=false #By default all domains
 
 
 # parse the parameter passes
-OPTS=`getopt -o hi:o:AH:P:U:D:I --long input:,output:,start:,end:,protocols:,hash-type:,user:,domain:,show-ip,help -n 'parse-options' -- "$@"`
+OPTS=`getopt -o hi:o:AH:P:U:D:I:u --long input:,output:,start:,end:,protocols:,hash-type:,user:,domain:,usernames,show-ip,help -n 'parse-options' -- "$@"`
 
 if [ $? != 0 ]
 then
@@ -119,7 +121,8 @@ while true; do
     -o  | --output)     ifEmpty "$2" "$1"; OUTPUT=$2; shift 2 ;;
     -H  | --hash-type)  ifEmpty "$2" "$1"; HASHTYPE=$2; shift 2 ;;
     -P  | --protocols)  ifEmpty "$2" "$1"; PROTOCOLS=$2; shift 2 ;;    
-    -U  | --user)       ifEmpty "$2" "$1"; USER=$2; shift 2 ;;    
+    -U  | --user)       ifEmpty "$2" "$1"; USER=$2; shift 2 ;;
+    -u  | --usernames)  USERNAMESOPT=true ; shift ;;
     -D  | --domain)     ifEmpty "$2" "$1"; DOMAIN=$2; shift 2 ;;    
     -I  | --show-ip)    SHOWIP=true ; shift ;;
           --start)      checkDate "$2" "$1"; STARTDATE=$2; shift 2 ;;
@@ -148,19 +151,11 @@ fi
 # temporary file to work with
 TMP1=$(mktemp tmp.resp.XXXXXXX)
 TMP2=$(mktemp tmp.resp.XXXXXXX)
+USERNAMES=$(mktemp tmp.resp.XXXXXXX)
 FINALRES=$(mktemp tmp.resp.XXXXXXX)
 
 # remove non UTF-8 characters from the input file
-cat $INPUT | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" >> $TMP2
-
-cat $TMP2 | strings -n 8 >> $TMP1
-echo "" > $TMP2
-
-
-### Remote color codes from output
-#sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g"
-
-
+cat $INPUT | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g" | strings -n 8 >> $TMP1
 
 
 # Remove junk lines from the log
@@ -181,11 +176,17 @@ if [[ $STARTDATE && $ENDDATE ]] ; then
   cp $FINALRES $TMP1
 fi
 
+#Extract all usernames
+if $USERNAMESOPT ; then
+  grep -ioP "Hash +: (.*)::+" $TMP1 | cut -d:  -f 2 | cut -c 2- > $USERNAMES
+fi
 
 #[TODO] already cleaned the TMP file from useless lines, so change the regex in a simpler one
 
 grep -ioE "(\[($PROTOCOLS)\] )(($HASHTYPE) )(Hash +:)( (.*$USER.*)::)(.*$DOMAIN.*)([^:])?(:)((.*[^:]):)(:*[a-zA-Z0-9_]+)([:]+[a-zA-Z0-9_]+)+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
 cp $FINALRES $TMP1
+
+
 
 
 # extract only one occurence per user (avoid multiple hases for each user)
@@ -214,11 +215,15 @@ fi
 
 # Write the results into a file or stout
 if [ "$OUTPUT" == "" ] ; then
+  echo -e "\n === LIST OF HASHES === \n"
   cat $FINALRES #stdout
+  echo -e "\n === LIST OF USERNAMES === \n"
+  cat $USERNAMES
 else
   mv $FINALRES $OUTPUT #file provided in the command
+  mv $USERNAMES "$OUTPUT.usernames"
 fi
 
 
 # Delete all temp files
-trap "rm -f $TMP1 $FINALRES $TMP2" EXIT
+trap "rm -f $TMP1 $FINALRES $TMP2 $USERNAMES" EXIT
