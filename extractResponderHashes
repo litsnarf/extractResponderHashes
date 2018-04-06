@@ -14,7 +14,7 @@
 ##    -I, --show-ip                     Print client information for each hash
 ##
 ##  Filter options
-##    -A:                               Extract ALL the hashes for every user. By default extraxt the first occurence
+##    -A:                               Extract ALL the hashes for every user. By default extract the first occurrence
 ##    -P, --protocols <protocol_name>   Protocol(s) for which you want the hashes. Separate with pipe (|): -P "SMB|HTTP|SMBv2|FTP"
 ##    -H, --hash-type <HASH_TYPE>       HASH_TYPE for which you want the hashes. Separate with pipe (|): -H "NTLMv2|NTLMv2-SSP"
 ##    -U, --user <username>             Filter hashes for a specific username
@@ -122,9 +122,9 @@ while true; do
     -H  | --hash-type)  ifEmpty "$2" "$1"; HASHTYPE=$2; shift 2 ;;
     -P  | --protocols)  ifEmpty "$2" "$1"; PROTOCOLS=$2; shift 2 ;;    
     -U  | --user)       ifEmpty "$2" "$1"; USER=$2; shift 2 ;;
-    -u  | --usernames)  USERNAMESOPT=true ; shift ;;
     -D  | --domain)     ifEmpty "$2" "$1"; DOMAIN=$2; shift 2 ;;    
     -I  | --show-ip)    SHOWIP=true ; shift ;;
+    -u  | --usernames)  USERNAMESOPT=true ; shift ;;
           --start)      checkDate "$2" "$1"; STARTDATE=$2; shift 2 ;;
           --end)        checkDate "$2" "$1"; ENDDATE=$2; shift 2 ;;
     -A)                 ALLHASH=true ; shift ;;
@@ -186,9 +186,6 @@ fi
 grep -ioE "(\[($PROTOCOLS)\] )(($HASHTYPE) )(Hash +:)( (.*$USER.*)::)(.*$DOMAIN.*)([^:])?(:)((.*[^:]):)(:*[a-zA-Z0-9_]+)([:]+[a-zA-Z0-9_]+)+" $TMP1 | grep -ioE "[^:]+::.+:[a-zA-Z0-9_]+" > $FINALRES
 cp $FINALRES $TMP1
 
-
-
-
 # extract only one occurence per user (avoid multiple hases for each user)
 if [ "$ALLHASH" == false ] ; then
   for user in $(egrep -ioE '(.*::[^:]+:)' $FINALRES | sort -u) ; do 
@@ -227,7 +224,6 @@ else
     mv $USERNAMES "$OUTPUT.usernames"
   fi
 fi
-
 
 # Delete all temp files
 trap "rm -f $TMP1 $FINALRES $TMP2 $USERNAMES" EXIT
